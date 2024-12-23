@@ -136,6 +136,7 @@ pub struct Asteroid
 impl Asteroid {
     const DEFAULT_MAX: f32 = 80.0;
     const DEFAULT_MIN: f32 = 20.0;
+    const SPEED: f32 = 100.0;
 }
 
 impl Entity for Asteroid {
@@ -168,7 +169,7 @@ impl Entity for Asteroid {
     }
 
     fn apply(&mut self,delta_time: f32) {
-        self.model.position += (self.direction / self.class.size()) * delta_time;
+        self.model.position += (self.direction / self.class.size()) * Self::SPEED * delta_time;
         self.model.apply_constraints();
     }
 }
@@ -208,7 +209,7 @@ impl Game {
         let count = (self.level as f32 * Self::DIFFICULTY).round();
         let mut rng = rand::thread_rng();
 
-        const CLOSEST: f32 = 100.0;
+        const CLOSEST: f32 = 150.0;
         
         let increment = (PI * 2.0) / count;
         let mut current: f32 = 0.0;
@@ -225,6 +226,10 @@ impl Game {
 
             current += increment;
         }
+
+        self.pause = true;
+        self.pause_end = 2.0; // 2 seconds
+        self.show_level = true;
     }
 
     pub fn update(&mut self,rl: &RaylibHandle){
@@ -235,6 +240,7 @@ impl Game {
             }
             if rl.get_time() - self.pause_time >= self.pause_end {
                 self.pause = false;
+                self.show_level = false;
                 self.pause_time = 0.0;
             }
             return;
@@ -259,21 +265,25 @@ impl Game {
             // drag
             self.player.force.scale(0.98);
         }
+        // apply physics
         self.player.apply(dt);
+        for asteroid in &mut self.asteroids {
+            asteroid.apply(dt);
+        }
     }
 
     pub fn render(&self,d: &mut impl RaylibDraw){
 
         if self.show_level {
             let text = format!("Level: {}",self.level);
-            const FONT_SIZE: i32 = 10;
-            let mid = text.len() as i32 * FONT_SIZE;
-            d.draw_text(text.as_str(), Self::MID_X as i32 - mid, Self::MID_Y as i32, FONT_SIZE, Color::WHITE);
+            const FONT_SIZE: i32 = 80;
+            let mid = (text.len() as i32 * FONT_SIZE) / 4;
+            d.draw_text(text.as_str(), Self::MID_X as i32 - mid, Self::MID_Y as i32 + FONT_SIZE, FONT_SIZE, Color::WHITE);
         }
 
         self.player.render(d);
 
-        for asteroid in self.asteroids.iter() {
+        for asteroid in &self.asteroids {
             asteroid.render(d);
         }
     }
